@@ -217,6 +217,11 @@ Group "redmine_users":
 
 ## Changelog
 
+### v3.0.1 (2026-10-05)
+
+- Fixed: automatic scheduler failed with `undefined method running_rake!` because the `to_prepare` block in `init.rb` did not run on Redmine 6 - plugin libraries are now loaded in `after_initialize`
+- Scheduler now loads the infectors itself before running (same safeguard as the manual sync)
+
 ### v3.0.0 (2026)
 - Full Rails 7.2 / Redmine 6.x / Ruby 3.x compatibility
 - Zeitwerk autoloader compatibility (`vendor/` directory structure)

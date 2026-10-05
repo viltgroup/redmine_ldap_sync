@@ -41,6 +41,8 @@ module LdapSync
     # Ellenőrzi és futtatja az esedékes szinkronizációkat
     # DB lock: a next_run_at-et atomikusan frissítjük mielőtt futtatunk
     def self.check_and_run_all
+      require 'core_ext'
+      require 'infectors'
       AuthSourceLdap.all.each do |source|
         setting = LdapSetting.find_by_auth_source_ldap_id(source.id)
         next unless setting&.schedule_enabled?

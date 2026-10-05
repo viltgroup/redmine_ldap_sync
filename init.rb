@@ -13,7 +13,7 @@ Redmine::Plugin.register :redmine_ldap_sync do
   author_url  'https://github.com/thorin/redmine_ldap_sync'
   description 'Synchronizes Redmine users and groups with LDAP/Active Directory. Rails 7 / Redmine 6 compatible.'
   url         'https://github.com/jzsgbr/redmine_ldap_sync'
-  version     '3.0.0'
+  version     '3.0.1'
 
   # Requires Redmine 6.0 or higher (Rails 7 port)
   requires_redmine :version_or_higher => '6.0.0'
@@ -26,7 +26,7 @@ Redmine::Plugin.register :redmine_ldap_sync do
        :html => { :class => 'icon icon-reload' }
 end
 
-Rails.application.config.to_prepare do
+Rails.application.config.after_initialize do
   require 'core_ext'
   require 'infectors'
   require 'scheduler'
