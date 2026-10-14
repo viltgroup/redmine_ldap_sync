@@ -4,6 +4,7 @@ resources :ldap_settings, :path => 'admin/ldap_sync', :only => [:show, :edit, :u
     put  'disable'
     put  'enable'
     put  'update_schedule'
+    put  'update_local_schedule'
     post 'run_now'
   end
   get 'base_settings', :constraints => { :format => /js/ }, :on => :collection

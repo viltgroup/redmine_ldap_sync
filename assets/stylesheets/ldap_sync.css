@@ -39,7 +39,7 @@ pre#test-result {
 }
 
 /* Schedule tab */
-#ldap-schedule-box h3 { margin: 16px 0 8px; font-size: 1em; color: #444; }
-#ldap-schedule-box hr { border: none; border-top: 1px solid #e0e0e0; }
+.ldap-schedule-box h3 { margin: 16px 0 8px; font-size: 1em; color: #444; }
+.ldap-schedule-box hr { border: none; border-top: 1px solid #e0e0e0; }
 .schedule-status { color: #555; line-height: 1.8; }
 #run-now-output { color: #333; font-size: 0.85em; max-height: 200px; overflow-y: auto; }

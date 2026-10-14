@@ -1,0 +1,64 @@
+<%# Automatic synchronization form. Rendered once for the schedule saved in the database
+    and once for the schedule saved locally on this node (prefix keeps the element ids unique). %>
+<%= form_tag url, method: :put, id: "#{prefix}-form", class: 'ldap-schedule-form' do %>
+
+<div class="box tabular settings ldap-schedule-box" id="ldap-<%= prefix.dasherize %>-box">
+
+  <h3><%= title %></h3>
+  <% if local_assigns[:hint] %>
+    <p style="color:#666; font-size:0.9em;"><%= hint %></p>
+  <% end %>
+
+  <p>
+    <label>
+      <%= check_box_tag 'schedule[schedule_enabled]', '1',
+          schedule.schedule_enabled?, id: "#{prefix}_enabled", class: 'schedule-enabled' %>
+      <%= l(:label_enable_auto_sync) %>
+    </label>
+  </p>
+
+  <div class="schedule-options" style="<%= 'display:none' unless schedule.schedule_enabled? %>">
+
+    <p>
+      <%= label_tag "#{prefix}_frequency", l(:label_frequency) %>
+      <%= select_tag 'schedule[schedule_frequency]',
+          options_for_select(options_for_schedule_frequency, schedule.schedule_frequency),
+          id: "#{prefix}_frequency", class: 'schedule-frequency' %>
+    </p>
+
+    <div class="schedule-time-options" style="<%= 'display:none' if ['every_15_min','every_30_min'].include?(schedule.schedule_frequency) %>">
+      <p>
+        <%= label_tag "#{prefix}_hour", l(:label_run_at) %>
+        <span class="schedule-hour-select" style="<%= 'display:none' if schedule.schedule_frequency == 'hourly' %>">
+          <%= select_tag 'schedule[schedule_hour]',
+              options_for_select(options_for_schedule_hour, schedule.schedule_hour),
+              id: "#{prefix}_hour" %>
+        </span>
+        <span class="schedule-hour-colon" style="margin: 0 4px; font-weight:bold;<%= ' display:none;' if schedule.schedule_frequency == 'hourly' %>">:</span>
+        <%= select_tag 'schedule[schedule_minute]',
+            options_for_select(options_for_schedule_minute, schedule.schedule_minute),
+            id: "#{prefix}_minute", class: 'schedule-minute' %>
+        <em class="schedule-time-hint" style="color:#888; font-size:0.85em; margin-left:10px;"></em>
+      </p>
+    </div>
+
+    <% if schedule.schedule_last_run_at.present? || schedule.schedule_next_run_at.present? %>
+    <div class="schedule-status">
+      <% if schedule.schedule_last_run_at.present? %>
+        <div>📅 <%= l(:label_last_run) %>: <strong><%= Time.parse(schedule.schedule_last_run_at.to_s).localtime.strftime('%Y-%m-%d %H:%M') rescue schedule.schedule_last_run_at %></strong></div>
+      <% end %>
+      <% if schedule.schedule_next_run_at.present? %>
+        <div>⏭ <%= l(:label_next_run) %>: <strong><%= Time.parse(schedule.schedule_next_run_at.to_s).localtime.strftime('%Y-%m-%d %H:%M') rescue schedule.schedule_next_run_at %></strong></div>
+      <% end %>
+    </div>
+    <% end %>
+
+  </div>
+
+  <p style="margin-top:16px;">
+    <%= submit_tag l(:button_save_schedule), class: 'button' %>
+  </p>
+
+</div>
+
+<% end %>

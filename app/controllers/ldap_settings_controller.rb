@@ -4,7 +4,7 @@ class LdapSettingsController < ApplicationController
   menu_item :ldap_sync
 
   before_action :require_admin
-  before_action :find_ldap_setting, :only => [:show, :edit, :update, :test, :enable, :disable, :update_schedule, :run_now]
+  before_action :find_ldap_setting, :only => [:show, :edit, :update, :test, :enable, :disable, :update_schedule, :update_local_schedule, :run_now]
   before_action :update_ldap_setting_from_params, :only => [:edit, :update, :test]
 
   if respond_to? :skip_before_action
@@ -82,8 +82,32 @@ class LdapSettingsController < ApplicationController
 
   def update_schedule
     @ldap_setting.save_schedule(params[:schedule] || {})
-    flash[:notice] = l(:text_schedule_successfully_updated)
-    redirect_to edit_ldap_setting_path(@ldap_setting, :tab => 'Schedule')
+    notices = [l(:text_schedule_successfully_updated)]
+
+    # With both automatic modes enabled this node would run every synchronization twice
+    if @ldap_setting.schedule_enabled? && LdapSync::LocalSchedule.find(@ldap_setting.id).schedule_enabled?
+      LdapSync::LocalSchedule.disable!(@ldap_setting.id)
+      notices << l(:text_local_auto_sync_disabled, :host => LdapSync::LocalSchedule.hostname)
+    end
+    flash[:notice] = notices.join(' ')
+    redirect_to_schedule
+  rescue SystemCallError => e
+    local_schedule_error(e)
+  end
+
+  def update_local_schedule
+    schedule = LdapSync::LocalSchedule.save(@ldap_setting.id, params[:schedule] || {})
+    notices = [l(:text_schedule_successfully_updated)]
+
+    # The shared schedule would keep running on every node, which is what the local one is meant to avoid
+    if schedule.schedule_enabled? && @ldap_setting.schedule_enabled?
+      @ldap_setting.disable_schedule!
+      notices << l(:text_shared_auto_sync_disabled)
+    end
+    flash[:notice] = notices.join(' ')
+    redirect_to_schedule
+  rescue SystemCallError => e
+    local_schedule_error(e)
   end
 
   def run_now
@@ -117,6 +141,7 @@ class LdapSettingsController < ApplicationController
       # Frissítjük a last_run_at értéket
       next_run = LdapSync::Scheduler.next_run_for(@ldap_setting)
       @ldap_setting.update_schedule_timestamps!(Time.current, next_run)
+      LdapSync::LocalSchedule.record_run!(@ldap_setting.id)
     rescue => e
       result << "✗ Error: #{e.message}"
       Rails.logger.error "LdapSync manual run error: #{e.message}\n#{e.backtrace.first(5).join("\n")}"
@@ -132,6 +157,17 @@ class LdapSettingsController < ApplicationController
 
     def js_request?
       request.format.js?
+    end
+
+    def redirect_to_schedule
+      redirect_to edit_ldap_setting_path(@ldap_setting, :tab => 'Schedule')
+    end
+
+    # The local schedule file could not be read or written (e.g. no write permission)
+    def local_schedule_error(e)
+      Rails.logger.error "LdapSync local schedule error: #{e.message}"
+      flash[:error] = l(:error_local_schedule_not_saved, :path => LdapSync::LocalSchedule.path, :message => e.message)
+      redirect_to_schedule
     end
 
     def update_ldap_setting_from_params

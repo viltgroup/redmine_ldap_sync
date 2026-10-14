@@ -311,6 +311,12 @@ class LdapSetting
     self.settings = delete_unsafe_attributes(@attributes, User.current)
   end
 
+  def disable_schedule!
+    @attributes[:schedule_enabled]     = false
+    @attributes[:schedule_next_run_at] = nil
+    self.settings = delete_unsafe_attributes(@attributes, User.current)
+  end
+
   # LdapSettings are always persisted because its authsource exists
   # (see ActiveModel::Lint::Tests::test_persisted?)
   def persisted?

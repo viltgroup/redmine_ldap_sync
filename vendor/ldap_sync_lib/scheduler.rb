@@ -1,4 +1,6 @@
 # encoding: utf-8
+require 'local_schedule'
+
 module LdapSync
   module Scheduler
 
@@ -38,6 +40,14 @@ module LdapSync
       end
     end
 
+    # Whether the schedule (an LdapSetting or a LocalSchedule::Entry) is enabled and its next run has passed
+    def self.due?(schedule)
+      return false unless schedule&.schedule_enabled?
+
+      next_run = Time.parse(schedule.schedule_next_run_at.to_s) rescue nil
+      next_run.present? && next_run <= Time.current
+    end
+
     # Ellenőrzi és futtatja az esedékes szinkronizációkat
     # DB lock: a next_run_at-et atomikusan frissítjük mielőtt futtatunk
     def self.check_and_run_all
@@ -45,31 +55,30 @@ module LdapSync
       require 'infectors'
       AuthSourceLdap.all.each do |source|
         setting = LdapSetting.find_by_auth_source_ldap_id(source.id)
-        next unless setting&.schedule_enabled?
-
-        next_run_str = setting.schedule_next_run_at
-        next if next_run_str.blank?
-
-        next_run = Time.parse(next_run_str.to_s) rescue nil
-        next if next_run.nil? || next_run > Time.current
-
-        # Azonnal frissítjük a next_run_at-et hogy más worker ne fusson be
-        new_next = next_run_for(setting)
-        setting.update_schedule_timestamps!(Time.current, new_next)
-
-        # Háttérszálban futtatjuk hogy ne blokkolja a kérést
-        Thread.new do
-          begin
-            AuthSourceLdap.running_rake!
-            source.sync_groups
-            source.sync_users
-          rescue => e
-            Rails.logger.error "LdapSync Scheduler error for #{source.name}: #{e.message}"
-          end
+        if due?(setting)
+          # Azonnal frissítjük a next_run_at-et hogy más worker ne fusson be
+          setting.update_schedule_timestamps!(Time.current, next_run_for(setting))
+          run_in_background(source)
         end
+
+        # Schedule saved locally: only runs on the node that has it
+        run_in_background(source) if LocalSchedule.claim_due_run!(source.id)
       end
     rescue => e
       Rails.logger.error "LdapSync Scheduler check failed: #{e.message}"
+    end
+
+    # Háttérszálban futtatjuk hogy ne blokkolja a kérést
+    def self.run_in_background(source)
+      Thread.new do
+        begin
+          AuthSourceLdap.running_rake!
+          source.sync_groups
+          source.sync_users
+        rescue => e
+          Rails.logger.error "LdapSync Scheduler error for #{source.name}: #{e.message}"
+        end
+      end
     end
 
   end

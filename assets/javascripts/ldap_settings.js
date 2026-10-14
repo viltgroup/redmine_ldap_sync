@@ -68,6 +68,9 @@
           $(this).append('<input type="hidden" name="tab" value="' + current_tab + '">');
         }
       });
+
+    // Kezdeti állapot beállítása ha a Schedule tab aktív
+    updateAllScheduleUIs();
   }
 
   // Event delegation - a #commit-test dinamikusan renderelődik tab váltáskor
@@ -123,10 +126,12 @@
 
 
   // ── Schedule tab logika - event delegation (Turbo kompatibilis) ──
+  // The tab has one form per automatic synchronization mode (database / saved locally),
+  // so every lookup is scoped to the .ldap-schedule-form it belongs to.
 
 
-  function updateMinuteSelector(freq) {
-    var $sel = $('#schedule_minute');
+  function updateMinuteSelector($form, freq) {
+    var $sel = $form.find('.schedule-minute');
     if (!$sel.length) return;
     var current = $sel.val();
 
@@ -144,29 +149,26 @@
     }
   }
 
-  function updateScheduleUI() {
-    var $freq = $('#schedule_frequency');
+  function updateScheduleUI($form) {
+    var $freq = $form.find('.schedule-frequency');
     if (!$freq.length) return;
     var freq = $freq.val();
 
     // 15 és 30 percnél nincs időpont beállítás
     if (freq === 'every_15_min' || freq === 'every_30_min') {
-      $('#schedule-time-options').hide();
+      $form.find('.schedule-time-options').hide();
     } else {
-      $('#schedule-time-options').show();
+      $form.find('.schedule-time-options').show();
     }
 
     // Óránként: csak percválasztó, az óraválasztót elrejtjük
     if (freq === 'hourly') {
-      $('#schedule-hour-select').hide();
-      $('#schedule-hour-colon').hide();
+      $form.find('.schedule-hour-select').hide();
+      $form.find('.schedule-hour-colon').hide();
     } else {
-      $('#schedule-hour-select').show();
-      $('#schedule-hour-colon').show();
+      $form.find('.schedule-hour-select').show();
+      $form.find('.schedule-hour-colon').show();
     }
-
-    // Napválasztó soha nem kell (weekly kivéve)
-    $('#schedule-days-row').hide();
 
     var hints = {
       'every_15_min': 'Runs every 15 minutes',
@@ -174,25 +176,27 @@
       'hourly':       'Runs every hour at the selected minute',
       'daily':        'Runs once a day at the selected time'
     };
-    $('#schedule-time-hint').text(hints[freq] || '');
-    updateMinuteSelector(freq);
+    $form.find('.schedule-time-hint').text(hints[freq] || '');
+    updateMinuteSelector($form, freq);
+  }
+
+  function updateAllScheduleUIs() {
+    $('.ldap-schedule-form').each(function() { updateScheduleUI($(this)); });
   }
 
   // Event delegation - Turbo-barát
-  $(document).off('change.schedule_enabled').on('change.schedule_enabled', '#schedule_enabled', function() {
+  $(document).off('change.schedule_enabled').on('change.schedule_enabled', '.schedule-enabled', function() {
+    var $options = $(this).closest('.ldap-schedule-form').find('.schedule-options');
     if ($(this).is(':checked')) {
-      $('#schedule-options').slideDown(200);
+      $options.slideDown(200);
     } else {
-      $('#schedule-options').slideUp(200);
+      $options.slideUp(200);
     }
   });
 
-  $(document).off('change.schedule_freq').on('change.schedule_freq', '#schedule_frequency', function() {
-    updateScheduleUI();
+  $(document).off('change.schedule_freq').on('change.schedule_freq', '.schedule-frequency', function() {
+    updateScheduleUI($(this).closest('.ldap-schedule-form'));
   });
-
-  // Kezdeti állapot beállítása ha a Schedule tab aktív
-  updateScheduleUI();
 
   // Run now gomb
   $(document).off('click.runnow').on('click.runnow', '#run-now-btn', function(e) {
@@ -243,7 +247,7 @@
     }
     // Schedule UI frissítés ha Schedule tabra váltunk
     if (tabName === 'Schedule') {
-      updateScheduleUI();
+      updateAllScheduleUIs();
     }
     // Tab kiválasztás jelölése
     $('.tabs a').removeClass('selected');
